@@ -29,6 +29,7 @@ public class GameMove implements Move {
         return new GamePosition(squares);
     }
 
+    @Override
     public Player getType() {
         return type;
     }

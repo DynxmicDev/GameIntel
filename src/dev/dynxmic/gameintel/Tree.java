@@ -1,86 +1,82 @@
 package dev.dynxmic.gameintel;
 
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
+import java.util.Random;
 
-public class Tree {
+public class Tree<P extends Position, M extends Move> {
 
-    private final Player type;
-    private final List<Layer> layers;
+    private final List<Layer<P, M>> layers;
+    private final P position;
+    private final Player turn;
 
-    public Tree(Position position, Player type, int depth) {
+    public Tree(P position, Player turn, int depth) {
         this.layers = new ArrayList<>();
-        this.type = type;
+        this.position = position;
+        this.turn = turn;
 
-        Layer layer = createFirst(position);
+        List<Node<P, M>> layer = createFirst();
         for (int i = 0; i < depth; i++) {
-            layer = createNext(layer);
+            layer = createLayer(i, new ArrayList<>(layer));
         }
     }
 
-    public Move calculateMove() {
-        Node optimal = layers.get(1).getNodes().get(0);
-        for (Node node : layers.get(1).getNodes()) {
-            if (node.getValue(type) > optimal.getValue(type)) optimal = node;
+    public M calculateMove() {
+        if (layers.get(0).getNodes().isEmpty()) return null;
+
+        List<Node<P, M>> viable = new ArrayList<>(Collections.singletonList(layers.get(0).getNodes().get(0)));
+        for (Node<P, M> node : layers.get(0).getNodes()) {
+            if (node.getDeepValue().getDeepValue() > viable.get(0).getDeepValue().getDeepValue()) {
+                viable = new ArrayList<>(Collections.singletonList(node));
+            } else if (node.getDeepValue() == viable.get(0).getDeepValue() && !viable.contains(node)) {
+                viable.add(node);
+            }
         }
 
-        return optimal.getMove();
+        Random random = new Random();
+        return viable.get(random.nextInt(viable.size())).getMove();
     }
 
-    private Layer createFirst(Position position) {
-        Layer layer = new Layer();
-        layers.add(layer);
-        layer.addNode(new Node(position, new Move() {
-
-            @Override
-            public Position getNewPosition(Position position) {
-                return position;
-            }
-
-            @Override
-            public Player getType() {
-                return Player.COMPUTER;
-            }
-
-        }, layers.indexOf(layer)));
-
-        return layer;
+    private List<Node<P, M>> createFirst() {
+        return Collections.singletonList(new Node<>(position, null, 0));
     }
 
-    private Layer createNext(Layer layer) {
-        Layer newLayer = new Layer();
-        layers.add(newLayer);
+    private List<Node<P, M>> createLayer(int layer, List<Node<P, M>> nodes) {
+        Layer<P, M> newLayer = new Layer<>();
 
-        if (layers.indexOf(layer) % 2 == 0) {
-            for (Node node : layer.getNodes()) {
-                if (node.getPosition().getValue(type) == 1 || node.getPosition().getValue(type) == -1) continue;
-                for (Move move : node.getPosition().getMoves(type)) {
-                    Node newNode = new Node(move.getNewPosition(node.getPosition()), move, layers.indexOf(newLayer));
+        if (layer % 2 == 0) {
+            for (Node<P, M> node : nodes) {
+                if (node.getPosition().getValue() == 1 || node.getPosition().getValue() == -1) {
+                    continue;
+                }
+                for (Move move : node.getPosition().getMoves(turn)) {
+                    Node<P, M> newNode = new Node<>((P) move.getNewPosition(node.getPosition()), (M) move, layer + 1);
                     node.addChild(newNode);
                     newLayer.addNode(newNode);
                 }
             }
         } else {
-            for (Node node : layer.getNodes()) {
-                if (node.getPosition().getValue(type) == 1 || node.getPosition().getValue(type) == -1) continue;
-                if (type == Player.COMPUTER) {
-                    for (Move move : node.getPosition().getMoves(Player.OPPONENT)) {
-                        Node newNode = new Node(move.getNewPosition(node.getPosition()), move, layers.indexOf(newLayer));
-                        node.addChild(newNode);
-                        newLayer.addNode(newNode);
-                    }
-                } else {
-                    for (Move move : node.getPosition().getMoves(Player.COMPUTER)) {
-                        Node newNode = new Node(move.getNewPosition(node.getPosition()), move, layers.indexOf(newLayer));
-                        node.addChild(newNode);
-                        newLayer.addNode(newNode);
-                    }
+            for (Node<P, M> node : nodes) {
+                if (node.getPosition().getValue() == 1 || node.getPosition().getValue() == -1) {
+                    continue;
+                }
+                for (Move move : node.getPosition().getMoves(getOpposite(turn))) {
+                    Node<P, M> newNode = new Node<>((P) move.getNewPosition(node.getPosition()), (M) move, layer + 1);
+                    node.addChild(newNode);
+                    newLayer.addNode(newNode);
                 }
 
             }
         }
 
-        return newLayer;
+        layers.add(newLayer);
+        return newLayer.getNodes();
+    }
+
+    private Player getOpposite(Player player) {
+        if (player == Player.COMPUTER) return Player.OPPONENT;
+        return Player.COMPUTER;
     }
 
 }

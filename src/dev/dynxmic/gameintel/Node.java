@@ -1,46 +1,61 @@
 package dev.dynxmic.gameintel;
 
+import javafx.util.Pair;
+
 import java.util.ArrayList;
 import java.util.List;
 
-public class Node {
+public class Node<P extends Position, M extends Move> {
 
-    private final Position position;
-    private final Move move;
-    private final List<Node> children;
+    private final P position;
+    private final M move;
+    private final List<Node<P, M>> children;
     private final int layer;
 
-    public Node(Position position, Move move, int layer) {
+    public Node(P position, M move, int layer) {
         this.position = position;
         this.move = move;
         this.layer = layer;
         this.children = new ArrayList<>();
     }
 
-    public void addChild(Node node) {
+    public void addChild(Node<P, M> node) {
         children.add(node);
     }
 
-    public int getValue(Player type) {
-        if (children.isEmpty()) return position.getValue(type);
+    public DeepValue getDeepValue() {
+        if (children.isEmpty()) {
+            return new DeepValue(position.getValue(), layer);
+        }
 
-        Node optimalMove = children.get(0);
-        for (Node child : children) {
-            if (layer % 2 == 0 && child.getValue(type) > optimalMove.getValue(type)) {
-                optimalMove = child;
-            } else if (layer % 2 == 1 && child.getValue(type) < optimalMove.getValue(type)) {
-                optimalMove = child;
+        int value = children.get(0).getDeepValue().getDeepValue();
+        int layer = children.get(0).getDeepValue().getDeepLayer();
+
+        for (Node<P, M> child : children) {
+            int childValue = child.getDeepValue().getDeepValue();
+            int childLayer = child.getDeepValue().getDeepLayer();
+
+            if (layer % 2 == 0) {
+                if (childValue >= value && childLayer > layer) {
+                    value = childValue;
+                    layer = childLayer;
+                }
+            } else {
+                if (childValue <= value && childLayer < layer) {
+                    value = childValue;
+                    layer = childLayer;
+                }
             }
         }
 
-        return optimalMove.getValue(type);
+        return new DeepValue(value, layer);
     }
 
-    public Move getMove() {
+    public M getMove() {
         return move;
     }
 
-    public Position getPosition() {
+    public P getPosition() {
         return position;
     }
 
