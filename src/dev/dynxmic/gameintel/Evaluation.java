@@ -1,11 +1,11 @@
 package dev.dynxmic.gameintel;
 
-public class DeepValue {
+public class Evaluation {
 
     private final int deepValue;
     private final int deepLayer;
 
-    public DeepValue(int deepValue, int deepLayer) {
+    public Evaluation(int deepValue, int deepLayer) {
         this.deepValue = deepValue;
         this.deepLayer = deepLayer;
     }

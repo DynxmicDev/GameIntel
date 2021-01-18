@@ -1,7 +1,5 @@
 package dev.dynxmic.gameintel;
 
-import javafx.util.Pair;
-
 import java.util.ArrayList;
 import java.util.List;
 
@@ -23,32 +21,54 @@ public class Node<P extends Position, M extends Move> {
         children.add(node);
     }
 
-    public DeepValue getDeepValue() {
+    public Evaluation getEvaluation() {
         if (children.isEmpty()) {
-            return new DeepValue(position.getValue(), layer);
+            return new Evaluation(position.getValue(), layer);
         }
 
-        int value = children.get(0).getDeepValue().getDeepValue();
-        int layer = children.get(0).getDeepValue().getDeepLayer();
+        int value = children.get(0).getEvaluation().getDeepValue();
+        int layer = children.get(0).getEvaluation().getDeepLayer();
 
         for (Node<P, M> child : children) {
-            int childValue = child.getDeepValue().getDeepValue();
-            int childLayer = child.getDeepValue().getDeepLayer();
+            Evaluation evaluation = child.getEvaluation();
+            int childValue = evaluation.getDeepValue();
+            int childLayer = evaluation.getDeepLayer();
 
-            if (layer % 2 == 0) {
-                if (childValue >= value && childLayer > layer) {
+            if (this.layer % 2 == 0) {
+                if (childValue > value) {
                     value = childValue;
                     layer = childLayer;
+                } else if (childValue == value) {
+                    if (value > 0) {
+                        if (childLayer < layer) {
+                            layer = childLayer;
+                        }
+                    } else {
+                        if (childLayer > layer) {
+                            layer = childLayer;
+                        }
+                    }
                 }
+
             } else {
-                if (childValue <= value && childLayer < layer) {
+                if (childValue < value) {
                     value = childValue;
                     layer = childLayer;
+                } else if (childValue == value) {
+                    if (value < 0) {
+                        if (childLayer < layer) {
+                            layer = childLayer;
+                        }
+                    } else {
+                        if (childLayer > layer) {
+                            layer = childLayer;
+                        }
+                    }
                 }
             }
         }
 
-        return new DeepValue(value, layer);
+        return new Evaluation(value, layer);
     }
 
     public M getMove() {
@@ -57,6 +77,10 @@ public class Node<P extends Position, M extends Move> {
 
     public P getPosition() {
         return position;
+    }
+
+    public List<Node<P, M>> getChildren() {
+        return children;
     }
 
 }

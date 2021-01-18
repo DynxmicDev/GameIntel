@@ -1,9 +1,9 @@
 package dev.dynxmic.gameintel;
 
 import java.util.ArrayList;
-import java.util.Collections;
 import java.util.List;
 import java.util.Random;
+import java.util.stream.Collectors;
 
 public class Tree<P extends Position, M extends Move> {
 
@@ -16,62 +16,60 @@ public class Tree<P extends Position, M extends Move> {
         this.position = position;
         this.turn = turn;
 
-        List<Node<P, M>> layer = createFirst();
+        createFirst();
         for (int i = 0; i < depth; i++) {
-            layer = createLayer(i, new ArrayList<>(layer));
+            createLayer();
         }
     }
 
     public M calculateMove() {
-        if (layers.get(0).getNodes().isEmpty()) return null;
+        if (layers.get(1).getNodes().isEmpty()) return null;
 
-        List<Node<P, M>> viable = new ArrayList<>(Collections.singletonList(layers.get(0).getNodes().get(0)));
-        for (Node<P, M> node : layers.get(0).getNodes()) {
-            if (node.getDeepValue().getDeepValue() > viable.get(0).getDeepValue().getDeepValue()) {
-                viable = new ArrayList<>(Collections.singletonList(node));
-            } else if (node.getDeepValue() == viable.get(0).getDeepValue() && !viable.contains(node)) {
-                viable.add(node);
-            }
-        }
+        Evaluation value = layers.get(0).getNodes().get(0).getEvaluation();
+        int score = value.getDeepValue();
+        int layer = value.getDeepLayer();
+
+        List<Node<P, M>> nodes = layers.get(1).getNodes().stream().filter(pmNode -> pmNode.getEvaluation().getDeepValue() == score && pmNode.getEvaluation().getDeepLayer() == layer).collect(Collectors.toList());
 
         Random random = new Random();
-        return viable.get(random.nextInt(viable.size())).getMove();
+        return nodes.get(random.nextInt(nodes.size())).getMove();
     }
 
-    private List<Node<P, M>> createFirst() {
-        return Collections.singletonList(new Node<>(position, null, 0));
+    private void createFirst() {
+        Layer<P, M> layer = new Layer<>();
+        layer.addNode(new Node<>(position, null, 0));
+        layers.add(layer);
     }
 
-    private List<Node<P, M>> createLayer(int layer, List<Node<P, M>> nodes) {
-        Layer<P, M> newLayer = new Layer<>();
+    private void createLayer() {
+        Layer<P, M> layer = new Layer<>();
+        layers.add(layer);
 
-        if (layer % 2 == 0) {
-            for (Node<P, M> node : nodes) {
+        if (layers.indexOf(layer) % 2 == 1) {
+            for (Node<P, M> node : layers.get(layers.indexOf(layer) - 1).getNodes()) {
                 if (node.getPosition().getValue() == 1 || node.getPosition().getValue() == -1) {
                     continue;
                 }
                 for (Move move : node.getPosition().getMoves(turn)) {
-                    Node<P, M> newNode = new Node<>((P) move.getNewPosition(node.getPosition()), (M) move, layer + 1);
+                    Node<P, M> newNode = new Node<>((P) move.getNewPosition(node.getPosition()), (M) move, layers.indexOf(layer));
                     node.addChild(newNode);
-                    newLayer.addNode(newNode);
+                    layer.addNode(newNode);
                 }
             }
         } else {
-            for (Node<P, M> node : nodes) {
+            for (Node<P, M> node : layers.get(layers.indexOf(layer) - 1).getNodes()) {
                 if (node.getPosition().getValue() == 1 || node.getPosition().getValue() == -1) {
                     continue;
                 }
                 for (Move move : node.getPosition().getMoves(getOpposite(turn))) {
-                    Node<P, M> newNode = new Node<>((P) move.getNewPosition(node.getPosition()), (M) move, layer + 1);
+                    Node<P, M> newNode = new Node<>((P) move.getNewPosition(node.getPosition()), (M) move, layers.indexOf(layer));
                     node.addChild(newNode);
-                    newLayer.addNode(newNode);
+                    layer.addNode(newNode);
                 }
 
             }
         }
 
-        layers.add(newLayer);
-        return newLayer.getNodes();
     }
 
     private Player getOpposite(Player player) {
